@@ -10,7 +10,7 @@
 from sys import exit
 from math import radians, cos, sin, asin, sqrt, pi, tan, log, atan2, copysign
 import numpy as nmp
-from .config import IsZarr, ldebug, R_eq, R_pl, deg2km
+from .config import ldebug, R_eq, R_pl, deg2km
 
 def MsgExit( cmsg ):
     print('\n ERROR: '+cmsg+' !\n')

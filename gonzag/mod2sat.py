@@ -9,7 +9,7 @@
 
 import time ; # to report execution speed of certain parts of the code...
 #
-from .config import IsZarr, ldebug, ivrb, nb_talk, l_plot_meshes, deg2km, rfactor, search_box_w_km, l_save_track_on_model_grid, l_plot_meshes, rmissval
+from .config import ldebug, ivrb, nb_talk, l_plot_meshes, deg2km, rfactor, search_box_w_km, l_save_track_on_model_grid, l_plot_meshes, rmissval
 from .utils  import *
 from .bilin_mapping import BilinTrack
 
@@ -78,7 +78,7 @@ class Model2SatTrack:
         print('\n *** Starting space-time interpolation of model data onto the '+str(Nt)+' selected track points...')
 
         startTime = time.time()
-    
+
         for jt in range(Nt):
 
             # kt* : index for model
