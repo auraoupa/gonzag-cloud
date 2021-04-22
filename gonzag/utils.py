@@ -466,7 +466,7 @@ class SatTrack:
 
         self.file = dataset
 
-        print(' *** [SatTrack()] Analyzing the time vector in '+dataset+' ...')
+        print(' *** [SatTrack()] Analyzing the time vector in dataset ...')
 
         #import time
         #startTime = time.time()

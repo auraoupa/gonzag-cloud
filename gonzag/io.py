@@ -73,10 +73,10 @@ def GetTimeInfo( dataset ):
     # Get number of time-records + first and last date
     # Return them + dates as UNIX Epoch time, aka "seconds since 1970-01-01 00:00:00" (float)
     '''
-    if ldebug: print(' *** [GetTimeInfo()] Getting calendar/time info in '+dataset+' ...')
+    if ldebug: print(' *** [GetTimeInfo()] Getting calendar/time info in dataset ...')
     for cd in [ 'time', 'time_counter', 'TIME', 'record', 't', 'none' ]:
         if cd in dataset.coords: break
-    if cd == 'none': MsgExit('found no time-record dimension in file '+dataset)
+    if cd == 'none': MsgExit('found no time-record dimension in dataset')
     if ldebug: print('   => time/record dimension is "'+cd+'"')
     nt = dataset[cd].size
     clndr = dataset[cd]
@@ -112,7 +112,7 @@ def GetTimeEpochVector( dataset, kt1=0, kt2=0, isubsamp=1, lquiet=False ):
             clndr = dataset[cv]
             cunt  = clndr.attrs['units']
             ccal  = clndr.attrs['calendar']
-            if ivrb>0 and ltalk: print(' *** [GetTimeEpochVector()] reading "'+cv+'" in '+dataset+' and converting it to Epoch time...')
+            if ivrb>0 and ltalk: print(' *** [GetTimeEpochVector()] reading "'+cv+'" in dataset and converting it to Epoch time...')
             if kt1>0 and kt2>0:
                 if kt1>=kt2: MsgExit('mind the indices when calling GetTimeEpochVector()')
                 vdate = clndr[kt1:kt2+1:isubsamp]
@@ -121,7 +121,7 @@ def GetTimeEpochVector( dataset, kt1=0, kt2=0, isubsamp=1, lquiet=False ):
                 vdate = clndr[::isubsamp]
                 cc = 'in TOTAL!'
             break
-    if cv == 'none': MsgExit('found no time-record variable in file '+dataset+' (possible fix: "cv_t_test" in "GetTimeEpochVector()")')
+    if cv == 'none': MsgExit('found no time-record variable in dataset (possible fix: "cv_t_test" in "GetTimeEpochVector()")')
     #
     rvte = ToEpochTime( vdate, cunt, ccal ) ; # convert to Unix Epoch time
     #
@@ -159,7 +159,7 @@ def GetModelLSM( dataset, what ):
     # Returns the land-sea mask on the source/moded domain: "1" => ocean point, "0" => land point
     # => 2D array [integer]
     '''
-    print('\n *** what we use to define model land-sea mask:\n    => "'+what+'" in "'+dataset+'"\n')
+    print('\n *** what we use to define model land-sea mask:\n    => "'+what+'" in dataset \n')
     l_fill_val = (what[:10]=='_FillValue')
     ncvar = what
     if l_fill_val: ncvar = what[11:]
@@ -175,7 +175,7 @@ def GetModelLSM( dataset, what ):
         if   ndim==2: xmsk = dataset[ncvar][:,:]
         elif ndim==3: xmsk = dataset[ncvar][0,:,:]
         elif ndim==4: xmsk = dataset[ncvar][0,0,:,:]
-        else: MsgExit('FIX ME! Mask '+dataset+' has a weird number of dimensions:'+str(ndims))
+        else: MsgExit('FIX ME! Mask dataset has a weird number of dimensions:'+str(ndims))
     #
     return xmsk.astype(int)
 
@@ -184,13 +184,13 @@ def GetModel2DVar( dataset, ncvar, kt=0 ):
     '''
     #   Fetches the 2D field "ncvar" at time record kt into "dataset"
     '''
-    if ldebug: print(' *** [GetModel2DVar()] Reading model "'+ncvar+'" at record kt='+str(kt)+' in '+dataset)
+    if ldebug: print(' *** [GetModel2DVar()] Reading model "'+ncvar+'" at record kt='+str(kt)+' in dataset')
     nb_dim = len(dataset[ncvar].dims)
     if nb_dim==3:
         x2d = dataset[ncvar][kt,:,:]
     elif nb_dim==4:
         x2d = dataset[ncvar][kt,0,:,:] ; # taking surface field!
-    else: MsgExit('FIX ME! Model "'+dataset+'" has a weird number of dimensions: '+str(nb_dim))
+    else: MsgExit('FIX ME! Model dataset has a weird number of dimensions: '+str(nb_dim))
     if ldebug: print('')
     return x2d
 
@@ -212,7 +212,7 @@ def GetSatCoor( dataset, what,  kt1=0, kt2=0 ):
         if ncvar in dataset.coords: break
     if ncvar == 'none': MsgExit('could not find '+what+' array into satellite file (possible fix: "cv_coor_test" in "GetSatCoor()")')
     #
-    if ldebug: print(' *** [GetSatCoor()] reading "'+ncvar+'" in '+dataset+' ...')
+    if ldebug: print(' *** [GetSatCoor()] reading "'+ncvar+'" in dataset ...')
     nb_dim = len(dataset[ncvar].dims)
     if nb_dim==1:
         if kt1>0 and kt2>0:
@@ -236,7 +236,7 @@ def GetSatSSH( dataset, ncvar,  kt1=0, kt2=0, ikeep=[] ):
     #  - if (ikeep != []) => only retains parts of the data for which indices are provide into ikeep
     #          (ikeep is an array obtained as the result of a "numpy.where()"
     '''
-    if ldebug: print(' *** [GetSatSSH()] Reading satellite "'+ncvar+' in '+dataset)
+    if ldebug: print(' *** [GetSatSSH()] Reading satellite "'+ncvar+' in dataset')
     if kt1>0 and kt2>0:
         if kt1>=kt2: MsgExit('mind the indices when calling GetSatSSH()')
         vssh = dataset[ncvar][kt1:kt2+1]
