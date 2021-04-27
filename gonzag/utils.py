@@ -29,18 +29,6 @@ def degE_to_degWE( X ):
         return nmp.copysign(1., 180.-X)*nmp.minimum(X, nmp.abs(X-360.))
 
 
-def EpochT2Str( time ):
-    '''
-    # Input: UNIX epoch time (integer or float)
-    # Returns: a string of the date understandable by mamals...
-    '''
-    from datetime import datetime as dtm
-    #
-    itime = int(round(time,0))
-    #
-    return dtm.utcfromtimestamp(itime).strftime('%c')
-
-
 def find_j_i_min(x):
     '''
     # Yes, reinventing the wheel here, but it turns out
@@ -175,46 +163,43 @@ def IsGlobalLongitudeWise( X, resd=1. ):
     del xb
     return lglobal, l360, xmin, xmax
 
-
-
-
-def GetEpochTimeOverlap( dataset_sat, dataset_mod ):
+def GetTimeOverlap( dataset_sat, dataset_mod ):
     '''
-    # * irange_sat: time coverage in epoch Unix time for satellite data: (int,int)
-    # * irange_sat: time coverage in epoch Unix time for model     data: (int,int)
+    # Get time overlap from model segment
+    # Get satellite dates corresponding
+    # (not the same year)
     '''
-    from .io import GetTimeInfo
-
+    import numpy as nmp
+    import pandas as pd
     #
     nts, range_sat = GetTimeInfo( dataset_sat )
     ntm, range_mod = GetTimeInfo( dataset_mod )
     #
     (zt1_s,zt2_s) = range_sat
     (zt1_m,zt2_m) = range_mod
-    if ldebug: print('\n *** [GetEpochTimeOverlap()] Earliest/latest dates:\n   => for satellite data:',zt1_s,zt2_s,'\n   => for model     data:',zt1_m,zt2_m,'\n')
-    if (zt1_m >= zt2_s) or (zt1_s >= zt2_m) or (zt2_m <= zt1_s) or (zt2_s <= zt1_m):
-        MsgExit('No time overlap for Model and Track file')
-    return (max(zt1_s, zt1_m), min(zt2_s, zt2_m)), (nts, ntm)
+    if ldebug: print('\n *** Earliest/latest dates:\n   => for satellite data:',zt1_s.values,zt2_s.values,'\n   => for model     data:',zt1_m.values,zt2_m.values,'\n')
+    doy1_m=pd.to_datetime(zt1_m.values).dayofyear
+    doy2_m=pd.to_datetime(zt2_m.values).dayofyear
+    year_s=pd.to_datetime(zt1_s.values).year
+    date1=(npm.asarray(year_s+1, dtype='datetime64[Y]')-1970)+(npm.asarray(doy1_m, dtype='timedelta64[D]')-1)
+    date2=(npm.asarray(year_s+1, dtype='datetime64[Y]')-1970)+(npm.asarray(doy2_m, dtype='timedelta64[D]')-1)
 
+    return (date1, date2), (nts, ntm)
 
 def scan_idx( vt, rt1, rt2 ):
     '''
     # Finding indices when we can start and stop when scanning the track file:
-    # * vt: vector containing dates as Epoch UNIX time [float]
-    # * rt1, rt2: the 2 dates of interest (first and last) [float]
+    # * vt: vector containing dates of Satellite data
+    # * rt1, rt2: the 2 dates of interest (first and last) (from model)
     # RETURNS: the two corresponding position indices
     '''
-    nt = len(vt)
-    for kt1 in range(  0, nt-1):
-        if  (vt[kt1] <= rt1) and (vt[kt1+1] > rt1): break
-    for kt2 in range(kt1, nt-1):
-         if (vt[kt2] <= rt2) and (vt[kt2+1] > rt2): break
-    kt2 = kt2 + 1
+    idx1=npm.where(rvt>rt1)
+    idx2=npm.where(rvt<rt2)
+
+    kt1=idx1[0].min()
+    kt2=idx2[0].max()
+
     return kt1, kt2
-
-
-
-
 
 
 def GridAngle( xlat, xlon ):
@@ -347,11 +332,9 @@ class ModGrid:
     # mask
     # domain_bounds (= [ lat_min, lon_min, lat_max, lon_max ])
     '''
-    def __init__( self, dataset, rtu1, rtu2, gridset, varlsm, distorded_grid=False ):
+    def __init__( self, dataset, gridset, varlsm, distorded_grid=False ):
         '''
-        # * dataset: DataArray containing satellite track
-        # * rtu1: Epoch UNIX time to start getting time from (included) [float]
-        # * rtu2: Epoch UNIX time to stop  getting time from (included) [float]
+        # * dataset: DataArray containing model data
         # * gridset, varlsm: file and variable to get land-sea mask...
         '''
         from .io import GetTimeEpochVector, GetModelCoor, GetModelLSM, Save2Dfield
@@ -359,10 +342,9 @@ class ModGrid:
 
         self.file = dataset
 
-        rvt = GetTimeEpochVector( dataset )
-        jt1, jt2 = scan_idx( rvt, rtu1, rtu2 )
-        self.size = jt2 - jt1 + 1
-        self.time = GetTimeEpochVector( dataset, kt1=jt1, kt2=jt2 )
+        rvt = GetTimeVector( dataset )
+        self.size = len(rvt)
+        self.time = rvt
 
 
         zlat =          GetModelCoor( dataset, 'latitude' )
@@ -456,45 +438,29 @@ class SatTrack:
     def __init__( self, dataset, rtu1, rtu2, Np=0, domain_bounds=[-90.,0. , 90.,360.], l_0_360=True ):
         '''
         # *  dataset: DataArray containing satellite track
-        # *  rtu1: Epoch UNIX time to start getting time from (included) [float]
-        # *  rtu2: Epoch UNIX time to stop  getting time from (included) [float]
-        # ** Np:     number of points (size) of track in netCDF file...
+        # *  rtu1: date to start getting time from (included) [float]
+        # *  rtu2: date to stop  getting time from (included) [float]
+        # ** Np:     number of points (size) of track in dataset ...
         # ** domain_bounds: bound of region we are interested in => [ lat_min, lon_min, lat_max, lon_max ]
         '''
-        from .io import GetTimeEpochVector, GetSatCoor
+        from .io import GetTimeVector, GetSatCoor
 
 
         self.file = dataset
 
         print(' *** [SatTrack()] Analyzing the time vector in dataset ...')
 
-        #import time
-        #startTime = time.time()
 
-        if Np<2500:
-            # Can afford to read whole time vector, not a problem with such as small of number of records to read
-            rvt = GetTimeEpochVector( dataset, lquiet=True )
-            jt1, jt2 = scan_idx( rvt, rtu1, rtu2 )
-        else:
-            # Subsampling with increment of 500 for first pass...
-            kss = 500
-            rvt = GetTimeEpochVector( dataset, isubsamp=kss, lquiet=True ) ; # WAY faster to read a subsampled array with NetCDF-4 !
-            j1, j2 = scan_idx( rvt, rtu1, rtu2 )
-            j1 = j1*kss ; j2 = j2*kss ; # shorter new range in which to search
-            rvt = GetTimeEpochVector( dataset, kt1=j1, kt2=j2, lquiet=True ) ; # reading without subsampling but a shorter slice now!
-            jt1, jt2 = scan_idx( rvt, rtu1, rtu2 )
-            jt1 = jt1+j1 ; jt2 = jt2+j1 ; # convert in term of whole length
-            del j1, j2, kss
+        rvt = GetTimeVector( dataset, lquiet=True )
+        jt1, jt2 = scan_idx( rvt, rtu1, rtu2 )
 
         nt = jt2 - jt1 + 1
 
         self.jt1   = jt1
         self.jt2   = jt2
 
-        vtime = GetTimeEpochVector( dataset, kt1=jt1, kt2=jt2 )
+        vtime = GetTimeVector( dataset, kt1=jt1, kt2=jt2 )
 
-        #time_read_time = time.time() - startTime
-        #print(' *** ROOM FOR IMPROVEMENT => time_read_time =', time_read_time,'\n')
 
         vlat  =        GetSatCoor( dataset, 'latitude' , jt1,jt2 )
         vlon  =        GetSatCoor( dataset, 'longitude', jt1,jt2 )
