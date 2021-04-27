@@ -93,7 +93,7 @@ def GetModelCoor( dataset, what ):
     else: MsgExit('FIX ME! Model '+what+' has a weird number of dimensions')
     if ldebug: print(' *** [GetModelCoor()] Read model '+what+' (variable is "'+ncvar+'", with '+str(nb_dim)+' dimensions!',nmp.shape(xwhat),'\n')
     #
-    return xwhat.values
+    return xwhat
 
 
 def GetModelLSM( dataset, what ):

@@ -56,8 +56,8 @@ def GridResolution( X ):
     ny = X.shape[0]
     vx = nmp.abs(X[ny//2,1:] - X[ny//2,:-1])
     res = nmp.mean( vx[nmp.where(vx < 120.)] )
-    if ldebug: print(' *** [GridResolution()] Based on the longitude array, the model resolution ~= ', res, ' degrees \n')
-    return res
+    if ldebug: print(' *** [GridResolution()] Based on the longitude array, the model resolution ~= ', res.values, ' degrees \n')
+    return res.values
 
 
 def IsEastWestPeriodic( X ):
@@ -127,7 +127,7 @@ def SearchBoxSize( res_mod, width_box ):
 #    return lglobal, xmin1, xmax1
 
 
-def IsGlobalLongitudeWise( X, resd=1. ):
+def IsGlobalLongitudeWise( X, resd=1.,mask ):
     '''
     # LIMITATION: longitude has to increase in the x-direction (second dimension) of X (i increases => lon increases)
     # X    : the 2D array of the model grid longitude
@@ -137,12 +137,13 @@ def IsGlobalLongitudeWise( X, resd=1. ):
     #
     nx   = X.shape[1]
     X    = nmp.mod(X, 360.) ; # no concern, it should already have been done earlier anyway...
-    xmin = nmp.amin(X) ; # in [0:360] frame...
-    xmax = nmp.amax(X) ; #     "     "
-    imin = nmp.argmin(X)%nx
-    imax = nmp.argmax(X)%nx
+    Xm   = nmp.ma.masked_where( mask==0, X    )
+    xmin = nmp.amin(Xm) ; # in [0:360] frame...
+    xmax = nmp.amax(Xm) ; #     "     "
+    imin = nmp.argmin(Xm)%nx
+    imax = nmp.argmax(Xm)%nx
     #
-    xb = degE_to_degWE(X)
+    xb = degE_to_degWE(Xm)
     xminB = nmp.amin(xb) ; # in [-180:+180] frame...
     xmaxB = nmp.amax(xb) ; #     "      "
     #
@@ -169,7 +170,7 @@ def GetTimeOverlap( dataset_sat, dataset_mod ):
     # Get satellite dates corresponding
     # (not the same year)
     '''
-    import numpy as npm   
+    import numpy as npm
     import pandas as pd
     from .io import GetTimeInfo
     #
@@ -338,7 +339,7 @@ class ModGrid:
         # * dataset: DataArray containing model data
         # * gridset, varlsm: file and variable to get land-sea mask...
         '''
-        from .io import GetTimeEpochVector, GetModelCoor, GetModelLSM, Save2Dfield
+        from .io import GetTimeVector, GetModelCoor, GetModelLSM, Save2Dfield
 
 
         self.file = dataset
@@ -382,14 +383,15 @@ class ModGrid:
         self.HResKM  = self.HResDeg*deg2km
 
         # Globality and East-West periodicity ?
-        self.IsLonGlobal, self.l360, lon_min, lon_max = IsGlobalLongitudeWise( self.lon, resd=self.HResDeg )
+        self.IsLonGlobal, self.l360, lon_min, lon_max = IsGlobalLongitudeWise( self.lon.values, resd=self.HResDeg, mask=self.mask )
         if self.IsLonGlobal:
             self.EWPer = IsEastWestPeriodic( self.lon )
         else:
             self.EWPer = -1
 
-        lat_min = nmp.amin(self.lat)
-        lat_max = nmp.amax(self.lat)
+        latm = nmp.ma.masked_where( self.mask==0, self.lat    )
+        lat_min = nmp.amin(latm)
+        lat_max = nmp.amax(latm)
 
         # Local distortion angle:
         self.IsDistorded = distorded_grid
