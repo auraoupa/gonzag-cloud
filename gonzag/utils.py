@@ -127,7 +127,7 @@ def SearchBoxSize( res_mod, width_box ):
 #    return lglobal, xmin1, xmax1
 
 
-def IsGlobalLongitudeWise( X, resd=1.,mask ):
+def IsGlobalLongitudeWise( X, mask , resd=1. ):
     '''
     # LIMITATION: longitude has to increase in the x-direction (second dimension) of X (i increases => lon increases)
     # X    : the 2D array of the model grid longitude
@@ -334,7 +334,7 @@ class ModGrid:
     # mask
     # domain_bounds (= [ lat_min, lon_min, lat_max, lon_max ])
     '''
-    def __init__( self, dataset, gridset, varlsm, distorded_grid=False ):
+    def __init__( self, dataset, date1, date2, gridset, varlsm, distorded_grid=False ):
         '''
         # * dataset: DataArray containing model data
         # * gridset, varlsm: file and variable to get land-sea mask...
@@ -383,7 +383,7 @@ class ModGrid:
         self.HResKM  = self.HResDeg*deg2km
 
         # Globality and East-West periodicity ?
-        self.IsLonGlobal, self.l360, lon_min, lon_max = IsGlobalLongitudeWise( self.lon.values, resd=self.HResDeg, mask=self.mask )
+        self.IsLonGlobal, self.l360, lon_min, lon_max = IsGlobalLongitudeWise( self.lon.values, mask=self.mask , resd=self.HResDeg)
         if self.IsLonGlobal:
             self.EWPer = IsEastWestPeriodic( self.lon )
         else:
@@ -424,7 +424,7 @@ class ModGrid:
         print('     * lat_min, lat_max = ', round(lat_min,2), round(lat_max,2))
         print('     * should we pay attention to possible STRONG local distorsion in the grid: ', self.IsDistorded)
         print('     * number of time records of interest for the interpolation to come: ', self.size)
-        print('       ==> time record indices: '+str(jt1)+' to '+str(jt2)+', included\n')
+        print('       ==> time record dates: '+str(date1)+' to '+str(date2)+', included\n')
 
 
 
