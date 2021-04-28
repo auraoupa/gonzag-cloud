@@ -188,13 +188,15 @@ def GetTimeOverlap( dataset_sat, dataset_mod ):
 
     return (date1, date2), (nts, ntm)
 
-def scan_idx( vt, rt1, rt2 ):
+def scan_idx( rvt, rt1, rt2 ):
     '''
     # Finding indices when we can start and stop when scanning the track file:
     # * vt: vector containing dates of Satellite data
     # * rt1, rt2: the 2 dates of interest (first and last) (from model)
     # RETURNS: the two corresponding position indices
     '''
+    import numpy as npm
+    
     idx1=npm.where(rvt>rt1)
     idx2=npm.where(rvt<rt2)
 
