@@ -482,7 +482,7 @@ class BilinTrack:
 
             if ltalk:
                 print('      +++ Treated point: '+str(jt+1)+'/'+str(self.Nt), \
-                      '\n          ==> Sat. coordinates:    ', nmp.round(self.Yt[jt].values,3), nmp.round(self.Xt[jt].values,3))
+                      '\n          ==> Sat. coordinates:    ', nmp.round(self.Yt[jt],3), nmp.round(self.Xt[jt],3))
             
             [jj,ji] = NearestPoint( (self.Yt[jt],self.Xt[jt]), self.Ys, self.Xs, \
                                     rd_found_km=self.rfound, j_prv=jj, i_prv=ji, np_box_r=self.nprad )
