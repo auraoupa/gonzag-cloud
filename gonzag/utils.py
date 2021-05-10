@@ -170,7 +170,7 @@ def GetTimeOverlap( dataset_sat, dataset_mod ):
     # Get satellite dates corresponding
     # (not the same year)
     '''
-    import numpy as npm
+    import numpy as nmp
     import pandas as pd
     from .io import GetTimeInfo
     #
@@ -183,8 +183,8 @@ def GetTimeOverlap( dataset_sat, dataset_mod ):
     doy1_m=pd.to_datetime(zt1_m.values).dayofyear
     doy2_m=pd.to_datetime(zt2_m.values).dayofyear
     year_s=pd.to_datetime(zt1_s.values).year
-    date1=npm.asarray(year_s+1, dtype='datetime64[Y]')-1970+npm.asarray(doy1_m, dtype='timedelta64[D]')-1
-    date2=npm.asarray(year_s+1, dtype='datetime64[Y]')-1970+npm.asarray(doy2_m, dtype='timedelta64[D]')-1
+    date1=nmp.asarray(year_s+1, dtype='datetime64[Y]')-1970+nmp.asarray(doy1_m, dtype='timedelta64[D]')-1
+    date2=nmp.asarray(year_s+1, dtype='datetime64[Y]')-1970+nmp.asarray(doy2_m, dtype='timedelta64[D]')-1
 
     return (date1, date2), (nts, ntm)
 
@@ -195,10 +195,10 @@ def scan_idx( rvt, rt1, rt2 ):
     # * rt1, rt2: the 2 dates of interest (first and last) (from model)
     # RETURNS: the two corresponding position indices
     '''
-    import numpy as npm
-    
-    idx1=npm.where(rvt>rt1)
-    idx2=npm.where(rvt<rt2)
+    import numpy as nmp
+
+    idx1=nmp.where(rvt>rt1)
+    idx2=nmp.where(rvt<rt2)
 
     kt1=idx1[0].min()
     kt2=idx2[0].max()
