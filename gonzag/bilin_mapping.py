@@ -429,7 +429,7 @@ def WeightBL( pcoor_trg, Ys, Xs, isrc_msh ):
         if ldebug:
             print('   WARNING / sosie_bilin.WeightBL(): will use nearest point value')
             print('             as source mesh could not be identidied!')
-            print('    * Model:jP, iP =', j1, i1, ' GPS => ', Ys[j1,i1], Xs[j1,i1])
+            print('    * Model:jP, iP =', j1, i1, ' GPS => ', Ys[j1,i1].values, Xs[j1,i1].values)
             print('    * Sat:  yT, xT =', yT, xT)
     #
     return nmp.array([w1, w2, w3, w4])
