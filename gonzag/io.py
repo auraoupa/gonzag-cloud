@@ -134,7 +134,7 @@ def GetModel2DVar( dataset, ncvar, kt=0 ):
         x2d = dataset[ncvar][kt,0,:,:] ; # taking surface field!
     else: MsgExit('FIX ME! Model dataset has a weird number of dimensions: '+str(nb_dim))
     if ldebug: print('')
-    return x2d
+    return x2d.load()
 
 
 
@@ -168,7 +168,7 @@ def GetSatCoor( dataset, what,  kt1=0, kt2=0 ):
         MsgExit('FIX ME! Satellite '+what+' has a weird number of dimensions (we expect only 1: the time-record!)')
     if ldebug: print('   => '+str(vwhat.size)+' records '+cc+'\n')
     #
-    return vwhat.values
+    return vwhat
 
 
 def GetSatSSH( dataset, ncvar,  kt1=0, kt2=0, ikeep=[] ):
@@ -190,7 +190,7 @@ def GetSatSSH( dataset, ncvar,  kt1=0, kt2=0, ikeep=[] ):
     #
     if nmp.ma.is_masked(vssh): vssh[nmp.where( nmp.ma.getmask(vssh) )] = rmissval
     if ldebug: print('')
-    return vssh
+    return vssh.load()
 
 
 

@@ -161,7 +161,7 @@ def NearestPoint( pcoor_trg, Ys, Xs, rd_found_km=100., j_prv=0, i_prv=0, np_box_
         igo = igo + 1
         if igo>1: (j1,i1 , j2,i2) = (0,0 , Ny,Nx) ; # Falling back on whole domain for second pass...
         xd = Haversine( yT, xT,  Ys[j1:j2,i1:i2], Xs[j1:j2,i1:i2] )
-        jy, jx = find_j_i_min( xd.values )
+        jy, jx = find_j_i_min( xd )
         lfound = ( xd[jy,jx] < rfnd )
         if igo>1 and not lfound:
             rfnd = 1.25*rfnd ; # increasing validation distance criterion by 25 %

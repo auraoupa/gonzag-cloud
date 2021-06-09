@@ -8,7 +8,8 @@
 ############################################################################
 
 import time ; # to report execution speed of certain parts of the code...
-#
+import pandas as pd
+import numpy as np
 from .config import ldebug, ivrb, nb_talk, l_plot_meshes, deg2km, rfactor, search_box_w_km, l_save_track_on_model_grid, l_plot_meshes, rmissval
 from .utils  import *
 from .bilin_mapping import BilinTrack
@@ -84,41 +85,43 @@ class Model2SatTrack:
             # kt* : index for model
             # jt* : index for sat. track...
 
-            itt = ST.time[jt] ; # unix time
+            itt = ST.time[jt].values ; # unix time
+            year_sat=pd.to_datetime(itt).year
+            date_model=pd.Series(MG.time.values)
+            date_model_satyear=date_model.apply(lambda dt: dt.replace(year=year_sat))
 
             # Get surrounding records for model:
             kt = ktm1
-            while not (MG.time[kt]<=itt and MG.time[kt+1]>itt): kt=kt+1
+            while not (date_model_satyear[kt]<=itt and date_model_satyear[kt+1]>itt): kt=kt+1
             ktm1 = kt ; ktm2 = kt+1
 
             if jt%if_talk==0:
-                print('      jt = '+'%5.5i'%(jt)+' => satelite time = '+EpochT2Str(itt))
-                if ivrb>0: print('   => surounding kt for model: ', ktm1, ktm2, '(',EpochT2Str(MG.time[ktm1]),EpochT2Str(MG.time[ktm2]),') / ', \
-                      MG.time[ktm1],MG.time[ktm2] )
+                print('      jt = '+'%5.5i'%(jt)+' => satelite time = '+str(itt.values))
+                if ivrb>0: print('   => surounding kt for model: ', ktm1, ktm2,    MG.time[ktm1].values,MG.time[ktm2].values )
 
             # If first time we have these ktm1 & ktm2, getting the two surrounding fields:
             if (ktm1>ktm1_o) and (ktm2>ktm2_o):
                 if (ktm1_o == -10) or (ktm1 > ktm2_o):
-                    if ivrb>0: print(' *** Reading '+name_ssh_mod+' in '+MG.file+'\n    => at ktm1=', ktm1)
+                    if ivrb>0: print(' *** Reading '+name_ssh_mod+' in model dataset \n    => at ktm1=', ktm1)
                     Xm1 = GetModel2DVar( MG.file, name_ssh_mod, kt=ktm1 )
                 else:
                     Xm1[:,:] = Xm2[:,:]
                 #
-                if ivrb>0: print(' *** Reading '+name_ssh_mod+' in '+MG.file+'\n    => at ktm2=', ktm2)
+                if ivrb>0: print(' *** Reading '+name_ssh_mod+' in in model dataset \n    => at ktm2=', ktm2)
                 Xm2 = GetModel2DVar( MG.file, name_ssh_mod, kt=ktm2 )
 
                 # slope only needs to be calculated when Xm2 and Xm1 have been updated:
-                Xa = (Xm2 - Xm1) / float(MG.time[ktm2] - MG.time[ktm1])
+                Xa = (Xm2 - Xm1) / float((MG.time[ktm2].values - MG.time[ktm1].values )/ np.timedelta64(1, 's'))
 
             # Linear interpolation of field at time itt:
             if ivrb>0 and jt%if_talk==0: print('   => Model data is interpolated at current time out of model records '+str(ktm1)+' & '+str(ktm2))
-            Xm = Xm1[:,:] + Xa[:,:]*float(itt - MG.time[ktm1])
+            Xm = Xm1[:,:] + Xa[:,:]*float((itt - date_model_satyear[ktm1])/ np.timedelta64(1, 's'))
 
             [ [j1,i1],[j2,i2],[j3,i3],[j4,i4] ] = BT.SM[jt,:,:]
             [w1, w2, w3, w4]                    = BT.WB[jt,:]
 
             Sm = MG.mask[j1,i1] + MG.mask[j2,i2] + MG.mask[j3,i3] + MG.mask[j4,i4]
-            if Sm == 4:
+            if Sm.values == 4:
                 # All 4 model points are ocean point !
 
                 vssh_m_np[jt] = Xm[j1,i1] ; # Nearest-point "interpolation"
