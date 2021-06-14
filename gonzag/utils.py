@@ -292,9 +292,9 @@ def Haversine( plat, plon, xlat, xlon ):
     #R = RadiusEarth( plat ) ; # it's the target location that matters...
     R = 6360.
     #
-    a1 = nmp.sin( 0.5 * ((xlat - plat)*to_rad) )
-    a2 = nmp.sin( 0.5 * ((xlon - plon)*to_rad) )
-    a3 = nmp.cos( xlat*to_rad ) * cos(plat*to_rad)
+    a1 = nmp.sin( 0.5 * ((xlat.values - plat.values)*to_rad) )
+    a2 = nmp.sin( 0.5 * ((xlon.values - plon.values)*to_rad) )
+    a3 = nmp.cos( xlat.values*to_rad ) * cos(plat.values*to_rad)
     #
     return 2.*R*nmp.arcsin( nmp.sqrt( a1*a1 + a3 * a2*a2 ) )
 
