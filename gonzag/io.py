@@ -171,15 +171,15 @@ def GetSatCoor( dataset, what,  kt1=0, kt2=0 ):
     return vwhat
 
 
-def GetSatSSH( dataset, ncvar,  kt1=0, kt2=0, ikeep=[] ):
+def GetSatSSH( dataset, ncvar,  kt1=-1, kt2=-1, ikeep=[] ):
     '''
     # Get vector time-series of 'ncvar' in file 'ncfile'!
-    #  - from index kt1 to kt2, if these 2 are != 0!
+    #  - from index kt1 to kt2, if these 2 are != -1!
     #  - if (ikeep != []) => only retains parts of the data for which indices are provide into ikeep
     #          (ikeep is an array obtained as the result of a "numpy.where()"
     '''
     if ldebug: print(' *** [GetSatSSH()] Reading satellite "'+ncvar+' in dataset')
-    if kt1>0 and kt2>0:
+    if kt1>-1 and kt2>-1:
         if kt1>=kt2: MsgExit('mind the indices when calling GetSatSSH()')
         vssh = dataset[ncvar][kt1:kt2+1]
     else:
@@ -244,9 +244,7 @@ def SaveTimeSeries( ivt, xd, vvar, ncfile, time_units='unknown', vunits=[], vlnm
       foo.attrs["long_name"] = vlnm
       ds=foo.to_dataset(name = vvar)
       footime=xr.DataArray(ivt, dims=['time'],coords=[ivt.astype(nmp.float64)])
-      footime.attrs["units"] =time_units
-      footime.attrs["calendar"] = 'gregorian'
-      ds['time']=footime
+      ds['time_counter']=footime
       ds.attrs=dict(about=cabout_nc)
       ds.to_netcdf(ncfile,'w', format='NETCDF4')
     else:
@@ -255,16 +253,14 @@ def SaveTimeSeries( ivt, xd, vvar, ncfile, time_units='unknown', vunits=[], vlnm
       foo0.attrs["units"] = vunits[0]
       foo0.attrs["long_name"] = vlnm[0]
       ds=foo0.to_dataset(name = vvar[0])
-      footime=xr.DataArray(ivt, dims=['time'],coords=[ivt.astype(nmp.float64)])
-      footime.attrs["units"] =time_units
-      footime.attrs["calendar"] = 'gregorian'
-      ds['time']=footime
       for jf in range(1,Nf):
         foo=xr.DataArray(xd[jf],dims=['time'],coords=[ivt.astype(nmp.float64)])
         foo.name=vvar[jf]
         foo.attrs["units"] = vunits[jf]
         foo.attrs["long_name"] = vlnm[jf]
         ds[vvar[jf]]=foo
+      footime=xr.DataArray(ivt, dims=['time'],coords=[ivt.astype(nmp.float64)])
+      ds['time_counter']=footime
       ds.attrs=dict(about=cabout_nc)
       ds.to_netcdf(ncfile,'w', format='NETCDF4')
 

@@ -18,7 +18,7 @@ from .bilin_mapping import BilinTrack
 
 class Model2SatTrack:
 
-    def __init__( self, MG, name_ssh_mod, ST, name_ssh_sat ):
+    def __init__( self, MG, name_ssh_mod, ST, name_ssh_sat, one_track ):
         '''
         # MG: Model grid => "ModelGrid" object (util.py)
         # ST: Satellite track rid of unneeded points => "SatTrack" object (util.py)
@@ -26,6 +26,9 @@ class Model2SatTrack:
         '''
         # To be replaced with test on file extension of MG.file & ST.file:
         from .io   import GetModel2DVar, GetSatSSH
+
+        jt1=ST.index_tracks[one_track][0]
+        jt2=ST.index_tracks[one_track][1]
 
         (Nj,Ni) = MG.shape
 
@@ -36,15 +39,14 @@ class Model2SatTrack:
         np_box_radius = SearchBoxSize( MG.HResDeg*deg2km, search_box_w_km )
         print(' *** Will use zoom boxes of width of '+str(2*np_box_radius+1)+' points for 1st attempts of nearest-point location...\n')
 
-        Nt = ST.size ; # number of satellit observation point to work with here...
+        Nt = jt2 - jt1 ; # number of satellit observation point to work with here...
 
         if_talk = Nt//nb_talk
 
         # The BIG GUY:
         startTime = time.time()
 
-        BT = BilinTrack( ST.lat, ST.lon, MG.lat, MG.lon, src_grid_local_angle=MG.xangle, \
-                         k_ew_per=MG.EWPer, rd_found_km=d_found_km, np_box_r=np_box_radius, freq_talk=if_talk )
+        BT = BilinTrack( ST.lat[jt1:jt2], ST.lon[jt1:jt2], MG.lat, MG.lon, src_grid_local_angle=MG.xangle, k_ew_per=MG.EWPer, rd_found_km=d_found_km, np_box_r=np_box_radius, freq_talk=if_talk )
 
         time_bl_mapping = time.time() - startTime
 
@@ -54,14 +56,14 @@ class Model2SatTrack:
         # Debug part to see if mapping/weights was correctly done:
         if ldebug and l_plot_meshes:
             print('\n *** ploting meshes...')
-            for jt in range(Nt):
+            for jt in range(jt1,jt2):
                 if jt%if_talk==0:
                     print('   ==> plot for jt =', jt, ' / ', Nt)
-                    [jj,ji] = BT.NP[jt,:]
+                    [jj,ji] = BT.NP[jt-jt1,:]
                     if (jj,ji) == (-1,-1):
                         print('      ===> NO! Was not found!')
                     else:
-                        PlotMesh( (ST.lon[jt],ST.lat[jt]), MG.lat, MG.lon, BT.SM[jt,:,:], BT.WB[jt,:], \
+                        PlotMesh( (ST.lon[jt],ST.lat[jt]), MG.lat, MG.lon, BT.SM[jt-jt1,:,:], BT.WB[jt-jt1,:], \
                                   fig_name='mesh_jt'+'%5.5i'%(jt)+'.png' )
         #################################################################################################
 
@@ -80,7 +82,7 @@ class Model2SatTrack:
 
         startTime = time.time()
 
-        for jt in range(Nt):
+        for jt in range(jt1,jt2):
 
             # kt* : index for model
             # jt* : index for sat. track...
@@ -96,7 +98,7 @@ class Model2SatTrack:
             ktm1 = kt ; ktm2 = kt+1
 
             if jt%if_talk==0:
-                print('      jt = '+'%5.5i'%(jt)+' => satelite time = '+str(itt.values))
+                print('      jt = '+'%5.5i'%(jt)+' => satelite time = '+str(itt))
                 if ivrb>0: print('   => surounding kt for model: ', ktm1, ktm2,    MG.time[ktm1].values,MG.time[ktm2].values )
 
             # If first time we have these ktm1 & ktm2, getting the two surrounding fields:
@@ -117,21 +119,21 @@ class Model2SatTrack:
             if ivrb>0 and jt%if_talk==0: print('   => Model data is interpolated at current time out of model records '+str(ktm1)+' & '+str(ktm2))
             Xm = Xm1[:,:] + Xa[:,:]*float((itt - date_model_satyear[ktm1])/ np.timedelta64(1, 's'))
 
-            [ [j1,i1],[j2,i2],[j3,i3],[j4,i4] ] = BT.SM[jt,:,:]
-            [w1, w2, w3, w4]                    = BT.WB[jt,:]
+            [ [j1,i1],[j2,i2],[j3,i3],[j4,i4] ] = BT.SM[jt-jt1,:,:]
+            [w1, w2, w3, w4]                    = BT.WB[jt-jt1,:]
 
             Sm = MG.mask[j1,i1] + MG.mask[j2,i2] + MG.mask[j3,i3] + MG.mask[j4,i4]
             if Sm.values == 4:
                 # All 4 model points are ocean point !
 
-                vssh_m_np[jt] = Xm[j1,i1] ; # Nearest-point "interpolation"
+                vssh_m_np[jt-jt1] = Xm[j1,i1] ; # Nearest-point "interpolation"
 
                 # Bilinear interpolation:
                 Sw = nmp.sum([w1, w2, w3, w4])
                 if abs(Sw-1.)> 0.001:
                     if ivrb>0: print('    FLAGGING MISSING VALUE at jt = '+str(jt)+' !!!')
                 else:
-                    vssh_m_bl[jt] = w1*Xm[j1,i1] + w2*Xm[j2,i2] + w3*Xm[j3,i3] + w4*Xm[j4,i4]
+                    vssh_m_bl[jt-jt1] = w1*Xm[j1,i1] + w2*Xm[j2,i2] + w3*Xm[j3,i3] + w4*Xm[j4,i4]
 
             ktm1_o = ktm1 ; ktm2_o = ktm2
 
@@ -143,15 +145,15 @@ class Model2SatTrack:
 
 
         # Distance parcourue since first point:
-        for jt in range(1,Nt):
-            vdistance[jt] = vdistance[jt-1] + haversine_sclr( ST.lat[jt], ST.lon[jt], ST.lat[jt-1], ST.lon[jt-1] )
+        for jt in range(jt1,jt2):
+            vdistance[jt-jt1] = vdistance[jt-jt1-1] + haversine_sclr( ST.lat[jt-jt1], ST.lon[jt-jt1], ST.lat[jt-jt1-1], ST.lon[jt-jt1-1] )
 
         # Satellite SSH:
-        vssh_s = GetSatSSH( ST.file, name_ssh_sat,  kt1=ST.jt1, kt2=ST.jt2, ikeep=ST.keepit )
+        vssh_s = GetSatSSH( ST.file, name_ssh_sat,  kt1=jt1, kt2=jt2-1)
 
-        self.time       = ST.time
-        self.lat        = ST.lat
-        self.lon        = ST.lon
+        self.time       = ST.time[jt1:jt2]
+        self.lat        = ST.lat[jt1:jt2]
+        self.lon        = ST.lon[jt1:jt2]
 
         imask = nmp.zeros(Nt,dtype=nmp.int8)
         imask[nmp.where((vssh_m_bl>-100.) & (vssh_m_bl<100.))] = 1

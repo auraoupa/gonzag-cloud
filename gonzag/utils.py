@@ -323,8 +323,98 @@ def PlotMesh( pcoor_trg, Ys, Xs, isrc_msh, wghts, fig_name='mesh.png' ):
     plt.savefig(fig_name, dpi=100, transparent=False)
     plt.close(1)
 
+def CuttingTracksDerive( slat ):
+    '''
+    Returns a list of indexes couples ([i1,i2], [i3,i4], ...) separating the tracks of the satellite data
+    between ascending and descending latitude
+    slat: latitude vector of every points of satellite data
+    '''
+    it1=0
+    it2=0
+    index_tracks=[]
+    slat_shift=nmp.roll(slat,-1)
+    deriv_lat=slat_shift-slat
+    while it2 < len(slat):
+        it1=it2
+        ind=nmp.where(nmp.sign(deriv_lat[it1:])==-1*nmp.sign(deriv_lat[it1]))
+        if len(ind[0])>0:
+            it=nmp.min(ind)
+            it2=it1+it
+            index_tracks.append([it1,it2])
+        else:
+            break
+    return index_tracks
 
+def RemoveIsolatedPointsinTracks( index_tracks, slat, slon):
+    '''
+    Cleans up a list of indexes couples ([i1,i2], [i3,i4], ...) separating the tracks of the satellite data
+    by removing singleton (points distant of more than 2deg in latitude or longitude)
+    index_tracks: list of indexes couples defining the tracks for satellite vector
+    slat: latitude vector of every points of satellite data
+    slon: longitude vector of every points of satellite data
+    '''
+    k=0
+    while k < len(index_tracks):
+        lat_sat_track=slat[index_tracks[k][0]:index_tracks[k][1]]
+        lon_sat_track=slon[index_tracks[k][0]:index_tracks[k][1]]
+        if len(lat_sat_track) == 0:
+            del index_tracks[k]
+            break
+        else:
+            lat_sat_track_shift=nmp.roll(lat_sat_track,-1)
+            lat_sat_track_reverse=nmp.roll(lat_sat_track,1)
+            diff_lat_sat_track=lat_sat_track-lat_sat_track_shift
+            diff_lat_sat_track_reverse=lat_sat_track-lat_sat_track_reverse
+            lon_sat_track_shift=nmp.roll(lon_sat_track,-1)
+            lon_sat_track_reverse=nmp.roll(lon_sat_track,1)
+            diff_lon_sat_track=lon_sat_track-lon_sat_track_shift
+            diff_lon_sat_track_reverse=lon_sat_track-lon_sat_track_reverse
+            index_track=nmp.arange(index_tracks[k][0],index_tracks[k][1])
+            break_points=0
+            for t in nmp.arange(len(index_track)-1): #last diff is the diff between first and last so its ok to be over 2
+                if nmp.abs(diff_lat_sat_track[t]) > 2 or nmp.abs(diff_lon_sat_track[t]) > 2:
+                    index_tracks.append([index_tracks[k][0],index_track[t]])
+                    index_tracks.append([index_track[t+1],index_tracks[k][1]])
+                    del index_tracks[k]
+                    break_points=1
+                    break
+            if nmp.abs(diff_lat_sat_track_reverse[-1]) > 2 or nmp.abs(diff_lon_sat_track_reverse[-1]) > 2: #to check if the last point is far away from the rest of the segment
+                index_tracks.append([index_tracks[k][0],index_tracks[k][1]-1])
+                index_tracks.append([index_tracks[k][1],index_tracks[k][1]])
+                del index_tracks[k]
+                break_points=1
+                break
+            if break_points == 0:
+                k+=1
+    return index_tracks
 
+def RemoveTracks( index_tracks ):
+    '''
+    Cleans up a list of indexes couples ([i1,i2], [i3,i4], ...) separating the tracks of the satellite data
+    by removing tracks with size lower than 1
+    index_tracks: list of indexes couples defining the tracks for satellite vector
+    '''
+    k=0
+    while k < len(index_tracks):
+        len_track = index_tracks[k][1]-index_tracks[k][0]
+        if len_track <= 1:
+            del index_tracks[k]
+        else:
+            k=k+1
+    return index_tracks
+
+def SeparateTracks( slat, slon ):
+    '''
+    Returns a list of indexes couples ([i1,i2], [i3,i4], ...) separating the tracks of the satellite data
+    in consistent pieces
+    slat: latitude vector of every points of satellite data
+    slon: longitude vector of every points of satellite data
+    '''
+    index_tracks_asc_desc = CuttingTracksDerive( slat )
+    index_tracks_clean = RemoveIsolatedPointsinTracks( index_tracks_asc_desc, slat, slon)
+    index_tracks_nosingleton = RemoveTracks( index_tracks_clean )
+    index_tracks_nosing_clean = RemoveIsolatedPointsinTracks( index_tracks_nosingleton, slat, slon)
+    return index_tracks_nosing_clean
 
 # C L A S S E S
 
@@ -490,6 +580,8 @@ class SatTrack:
 
         self.size = len(self.time)
         self.keepit = keepit
+        
+        self.index_tracks = SeparateTracks( self.lat.values, self.lon.values )
 
         del vtime, vlat, vlon
         #print(' lolo: track size AFTER removing points outside of model domain: '+str(self.size))
@@ -497,3 +589,4 @@ class SatTrack:
         print('\n *** About satellite track (target) domain:')
         print('     * number of time records of interest for the interpolation to come: ', self.size)
         print('       ==> time record indices: '+str(jt1)+' to '+str(jt2)+', included\n')
+        print('       separated in '+str(len(self.index_tracks))+' tracks')
