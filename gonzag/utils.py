@@ -345,6 +345,23 @@ def CuttingTracksDerive( slat ):
             break
     return index_tracks
 
+def RemoveNaNSSH( index_tracks, sssh):
+    '''
+    Cleans up a list of indexes couples ([i1,i2], [i3,i4], ...) separating the tracks of the satellite data
+    by removing points with NaN as ssh
+    index_tracks: list of indexes couples defining the tracks for satellite vector
+    sssh: sea surface height of satellite data
+    '''
+    k=0
+    while k < len(index_tracks):
+        ssh_track=sssh[index_tracks[k][0]:index_tracks[k][1]]
+        if len(nmp.where(nmp.isnan(ssh_track)==1)) > 0:
+            del index_tracks[k]
+            break
+        else:
+               k+=1
+    return index_tracks
+
 def RemoveIsolatedPointsinTracks( index_tracks, slat, slon):
     '''
     Cleans up a list of indexes couples ([i1,i2], [i3,i4], ...) separating the tracks of the satellite data
@@ -403,7 +420,7 @@ def RemoveTracks( index_tracks ):
             k=k+1
     return index_tracks
 
-def SeparateTracks( slat, slon ):
+def SeparateTracks( slat, slon, ssh ):
     '''
     Returns a list of indexes couples ([i1,i2], [i3,i4], ...) separating the tracks of the satellite data
     in consistent pieces
@@ -411,7 +428,8 @@ def SeparateTracks( slat, slon ):
     slon: longitude vector of every points of satellite data
     '''
     index_tracks_asc_desc = CuttingTracksDerive( slat )
-    index_tracks_clean = RemoveIsolatedPointsinTracks( index_tracks_asc_desc, slat, slon)
+    index_tracks_clean_ssh = RemoveNaNSSH( index_tracks_asc_desc, ssh)
+    index_tracks_clean = RemoveIsolatedPointsinTracks( index_tracks_clean_ssh, slat, slon)
     index_tracks_nosingleton = RemoveTracks( index_tracks_clean )
     index_tracks_nosing_clean = RemoveIsolatedPointsinTracks( index_tracks_nosingleton, slat, slon)
     return index_tracks_nosing_clean
@@ -530,15 +548,18 @@ class SatTrack:
     '''
     # Will provide: size, time[:], lat[:], lon[:] of Satellite track
     '''
-    def __init__( self, dataset, rtu1, rtu2, Np=0, domain_bounds=[-90.,0. , 90.,360.], l_0_360=True ):
+    def __init__( self, dataset, rtu1, rtu2, name_ssh, Np=0, domain_bounds=[-90.,0. , 90.,360.], l_0_360=True ):
         '''
         # *  dataset: DataArray containing satellite track
+        # *  name_ssh : name of the variable containing ssh [string]
         # *  rtu1: date to start getting time from (included) [float]
         # *  rtu2: date to stop  getting time from (included) [float]
         # ** Np:     number of points (size) of track in dataset ...
         # ** domain_bounds: bound of region we are interested in => [ lat_min, lon_min, lat_max, lon_max ]
         '''
-        from .io import GetTimeVector, GetSatCoor
+        from .io import GetTimeVector, GetSatCoor, GetSatSSH
+
+
 
 
         self.file = dataset
@@ -581,9 +602,10 @@ class SatTrack:
         self.size = len(self.time)
         self.keepit = keepit
         
-        self.index_tracks = SeparateTracks( self.lat.values, self.lon.values )
+        vssh = GetSatSSH( self.file, name_ssh,  kt1=jt1, kt2=jt2-1)
+        self.index_tracks = SeparateTracks( self.lat.values, self.lon.values, vssh )
 
-        del vtime, vlat, vlon
+        del vtime, vlat, vlon, vssh
         #print(' lolo: track size AFTER removing points outside of model domain: '+str(self.size))
 
         print('\n *** About satellite track (target) domain:')

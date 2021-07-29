@@ -15,7 +15,6 @@ from .utils  import *
 from .bilin_mapping import BilinTrack
 
 
-
 class Model2SatTrack:
 
     def __init__( self, MG, name_ssh_mod, ST, name_ssh_sat, one_track ):

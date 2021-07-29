@@ -173,20 +173,20 @@ def Process4FFT( IDseg, Vd, VS, VM ):
     vs_m = nmp.zeros((NbS,Nsl))
     
     for js in range(NbS):
-            
+        print(js) 
         it1 = IDseg[js,0]
         it2 = IDseg[js,1]
 
         if js==0:
             # Checking the typical distance (in km) between two measures:
-            dmean = nmp.mean(Vd[it1+1:it2+1]-Vd[it1:it2])
+            dmean = nmp.mean(Vd[it1+1:it2+1].values-Vd[it1:it2].values)
             if ivrb>0: print(' *** [Process4FFT()]: Mean distance between two consecutive points is '+str(dmean)+' km\n')
             # Sample spacing in [km] (inverse of the sampling rate):
-            dx_sample = round(dmean,3)
+            dx_sample = nmp.round(dmean,3)
             if ivrb>0: print('     => will use a spatial sample spacing of '+str(dx_sample)+' km\n')
                     
-        vs_s[js,:] = VS[it1:it2+1]
-        vs_m[js,:] = VM[it1:it2+1]
+        vs_s[js,:] = VS[it1:it2+1].values
+        vs_m[js,:] = VM[it1:it2+1].values
         
         # Linear detrending
         if l_detrend_lin:
