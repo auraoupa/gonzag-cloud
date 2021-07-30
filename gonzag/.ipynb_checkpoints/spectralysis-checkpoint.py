@@ -173,7 +173,6 @@ def Process4FFT( IDseg, Vd, VS, VM ):
     vs_m = nmp.zeros((NbS,Nsl))
     
     for js in range(NbS):
-        print(js) 
         it1 = IDseg[js,0]
         it2 = IDseg[js,1]
 
