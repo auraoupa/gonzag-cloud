@@ -11,9 +11,9 @@ ldebug = False
 
 ivrb   = 0 ; # level of verbosity... [0-2]
 
-nb_talk = 100 ; # how many times do you want to see a progression message in long loops ?
+nb_talk = 1000 ; # how many times do you want to see a progression message in long loops ?
 
-l_plot_meshes = True ; # if ldebug: then will generate a plot the sources meshes at the `nb_talk` frequency
+l_plot_meshes = False ; # if ldebug: then will generate a plot the sources meshes at the `nb_talk` frequency
 
 deg2km = 111.11 ; # Converts degrees to km
 
