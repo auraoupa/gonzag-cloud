@@ -17,20 +17,20 @@ from .utils  import MsgExit
 cabout_nc = 'Created with Gonzag package => https://github.com/brodeau/gonzag'
 
 
-def GetTimeInfo( dataset ):
+def GetTimeInfo( dataset, varname ):
     '''
     # Inspect time dimension
     # Get number of time-records + first and last date
     '''
+    from datetime import datetime as dtm
+    
     if ldebug: print(' *** [GetTimeInfo()] Getting calendar/time info in dataset ...')
-    for cd in [ 'time', 'time_counter', 'TIME', 'record', 't', 'none' ]:
-        if cd in dataset.coords: break
-    if cd == 'none': MsgExit('found no time-record dimension in dataset')
-    if ldebug: print('   => time/record dimension is "'+cd+'"')
-    nt = dataset[cd].size
-    clndr = dataset[cd]
-
-    dt1 = clndr[0] ; dt2 = clndr[nt-1]
+    nt = dataset[varname].size
+    clndr = dataset[varname]
+    if type(clndr.values[0]) == nmp.float32:
+        dt1 = dtm.utcfromtimestamp(clndr[0]) ; dt2 = dtm.utcfromtimestamp(clndr[nt-1])
+    else:
+        dt1 = clndr[0].values ; dt2 = clndr[nt-1].values
     #
     if ldebug: print('   => first and last date: ',dt1.values,'--',dt2.values)
     #
@@ -39,7 +39,7 @@ def GetTimeInfo( dataset ):
 
 
 
-def GetTimeVector( dataset, kt1=0, kt2=0, isubsamp=1, lquiet=False ):
+def GetTimeVector( dataset, varname, kt1=0, kt2=0, isubsamp=1, lquiet=False ):
     '''
     # Get the time vector in the dataset
     #
@@ -52,40 +52,36 @@ def GetTimeVector( dataset, kt1=0, kt2=0, isubsamp=1, lquiet=False ):
     #  * rvte: datetime vector
     '''
     ltalk = ( ldebug and not lquiet )
-    cv_t_test = [ 'time', 'time_counter', 'TIME', 'record', 't', 'none' ]
-    for cv in cv_t_test:
-        if cv in dataset.coords:
-            clndr = dataset[cv]
-            if ivrb>0 and ltalk: print(' *** [GetTimeVector()] reading "'+cv+'" in dataset ...')
-            if kt1>0 and kt2>0:
-                if kt1>=kt2: MsgExit('mind the indices when calling GetTimeVector()')
-                vdate = clndr[kt1:kt2+1:isubsamp]
-                cc = 'read...'
-            else:
-                vdate = clndr[::isubsamp]
-                cc = 'in TOTAL!'
-            break
-    if cv == 'none': MsgExit('found no time-record variable in dataset (possible fix: "cv_t_test" in "GetTimeVector()")')
-    #
+    rvt = dataset[varname]
+    if type(rvt.values[0]) == nmp.float32:
+        clndr=[]
+        for k in nmp.arange(len(rvt)):
+            clndr.append(nmp.array(dtm.utcfromtimestamp(rvt[k]), dtype='datetime64')) 
+        clndr=nmp.array(clndr)
+    else:
+        clndr=rvt.values
+        
+    if kt1>0 and kt2>0:
+        if kt1>=kt2: MsgExit('mind the indices when calling GetTimeVector()')
+        vdate = clndr[kt1:kt2+1:isubsamp]
+        cc = 'read...'
+    else:
+        vdate = clndr[::isubsamp]
+        cc = 'in TOTAL!'
+
     if ivrb>0 and ltalk: print('   => '+str(len(vdate))+' records '+cc+'\n')
     return vdate
 
 
 
-def GetModelCoor( dataset, what ):
+def GetModelCoor( dataset, what, ncvar ):
     '''
     #   list_dim = list(id_f.dimensions.keys()) ;  print(" list dim:", list_dim)
     '''
-    cv_coor_test = nmp.array([[ 'lat','latitude', 'nav_lat','gphit','LATITUDE', 'none' ],
-                              [ 'lon','longitude','nav_lon','glamt','LONGITUDE','none' ]])
     if   what ==  'latitude': ii = 0
     elif what == 'longitude': ii = 1
     else: MsgExit(' "what" argument of "GetModelCoor()" only supports "latitude" and "longitude"')
     #
-    for ncvar in cv_coor_test[ii,:]:
-        if ncvar in dataset.coords: break
-    if ncvar == 'none': MsgExit('could not find '+what+' array into model file (possible fix: "cv_coor_test" in "GetModelCoor()")')
-   #
     nb_dim = len(dataset[ncvar].dims)
     if   nb_dim==1: xwhat = dataset[ncvar][:]
     elif nb_dim==2: xwhat = dataset[ncvar][:,:]
@@ -103,8 +99,10 @@ def GetModelLSM( dataset, what ):
     '''
     print('\n *** what we use to define model land-sea mask:\n    => "'+what+'" in dataset \n')
     l_fill_val = (what[:10]=='_FillValue')
+    l_nonzero_val = (what[:10]=='_IsNotZero')
     ncvar = what
     if l_fill_val: ncvar = what[11:]
+    if l_nonzero_val: ncvar = what[11:]
     #
     ndim = len(dataset[ncvar].dims)
     if l_fill_val:
@@ -112,6 +110,11 @@ def GetModelLSM( dataset, what ):
         if not ndim in [3,4]: MsgExit(ncvar+' is expected to have 3 or 4 dimensions')
         if ndim==3: xmsk = 1 - nmp.isnan(dataset[ncvar][0,:,:])
         if ndim==4: xmsk = 1 - nmp.isnan(dataset[ncvar][0,0,:,:])
+    elif l_nonzero_val:
+        # Mask is constructed out of variable and where it is not 0
+        if not ndim in [3,4]: MsgExit(ncvar+' is expected to have 3 or 4 dimensions')
+        if ndim==3: xmsk = dataset[ncvar][0,:,:] > 0
+        if ndim==4: xmsk = dataset[ncvar][0,0,:,:] > 0
     else:
         # Mask is read in mask file...
         if   ndim==2: xmsk = dataset[ncvar][:,:]
@@ -235,7 +238,7 @@ def SaveTimeSeries( ivt, xd, vvar, ncfile, time_units='unknown', vunits=[], vlnm
     if len(vvar)!= Nf: MsgExit('SaveTimeSeries() => disagreement in the number of fields between "vvar" and "xd"')
     l_f_units = (nmp.shape(vunits)==(Nf,)) ; l_f_lnm = (nmp.shape(vlnm)==(Nf,))
     #
-    print('\n *** About to write file "'+ncfile+'"...')
+#    print('\n *** About to write file "'+ncfile+'"...')
 
     if Nf == 1:
       foo=xr.DataArray(xd,dims=['time'],coords=[ivt.astype(nmp.float64)])

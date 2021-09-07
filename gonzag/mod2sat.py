@@ -32,11 +32,11 @@ class Model2SatTrack:
         (Nj,Ni) = MG.shape
 
         d_found_km = rfactor*MG.HResDeg*deg2km
-        print(' *** "found" distance criterion when searching for nearest point on model grid is ', d_found_km, ' km\n')
+        #print(' *** "found" distance criterion when searching for nearest point on model grid is ', d_found_km, ' km\n')
 
         # Size of the search zoom box:
         np_box_radius = SearchBoxSize( MG.HResDeg*deg2km, search_box_w_km )
-        print(' *** Will use zoom boxes of width of '+str(2*np_box_radius+1)+' points for 1st attempts of nearest-point location...\n')
+        #print(' *** Will use zoom boxes of width of '+str(2*np_box_radius+1)+' points for 1st attempts of nearest-point location...\n')
 
         Nt = jt2 - jt1 ; # number of satellit observation point to work with here...
 
@@ -77,7 +77,7 @@ class Model2SatTrack:
         ktm1   = 0   ; ktm2   = 0
         ktm1_o = -10 ; ktm2_o = -10
 
-        print('\n *** Starting space-time interpolation of model data onto the '+str(Nt)+' selected track points...')
+        #print('\n *** Starting space-time interpolation of model data onto the '+str(Nt)+' selected track points...')
 
         startTime = time.time()
 
@@ -86,9 +86,9 @@ class Model2SatTrack:
             # kt* : index for model
             # jt* : index for sat. track...
 
-            itt = ST.time[jt].values ; # unix time
+            itt = ST.time[jt] ; # unix time
             year_sat=pd.to_datetime(itt).year
-            date_model=pd.Series(MG.time.values)
+            date_model=pd.Series(MG.time)
             date_model_satyear=date_model.apply(lambda dt: dt.replace(year=year_sat))
 
             # Get surrounding records for model:
@@ -96,9 +96,9 @@ class Model2SatTrack:
             while not (date_model_satyear[kt]<=itt and date_model_satyear[kt+1]>itt): kt=kt+1
             ktm1 = kt ; ktm2 = kt+1
 
-            if jt%if_talk==0:
-                print('      jt = '+'%5.5i'%(jt)+' => satelite time = '+str(itt))
-                if ivrb>0: print('   => surounding kt for model: ', ktm1, ktm2,    MG.time[ktm1].values,MG.time[ktm2].values )
+            #if jt%if_talk==0:
+            #    print('      jt = '+'%5.5i'%(jt)+' => satelite time = '+str(itt))
+            #    if ivrb>0: print('   => surounding kt for model: ', ktm1, ktm2,    MG.time[ktm1].values,MG.time[ktm2].values )
 
             # If first time we have these ktm1 & ktm2, getting the two surrounding fields:
             if (ktm1>ktm1_o) and (ktm2>ktm2_o):
@@ -112,7 +112,7 @@ class Model2SatTrack:
                 Xm2 = GetModel2DVar( MG.file, name_ssh_mod, kt=ktm2 )
 
                 # slope only needs to be calculated when Xm2 and Xm1 have been updated:
-                Xa = (Xm2 - Xm1) / float((MG.time[ktm2].values - MG.time[ktm1].values )/ np.timedelta64(1, 's'))
+                Xa = (Xm2 - Xm1) / float((MG.time[ktm2] - MG.time[ktm1] )/ np.timedelta64(1, 's'))
 
             # Linear interpolation of field at time itt:
             if ivrb>0 and jt%if_talk==0: print('   => Model data is interpolated at current time out of model records '+str(ktm1)+' & '+str(ktm2))
@@ -140,7 +140,7 @@ class Model2SatTrack:
 
         time_bl_interp = time.time() - startTime
 
-        print(' *** Space-time interpolation done!\n')
+#        print(' *** Space-time interpolation done!\n')
 
 
         # Distance parcourue since first point:
@@ -169,9 +169,9 @@ class Model2SatTrack:
 
         del imask
 
-        print('\n *** Time report:')
-        print('     - Construction of the source-target bilinear mapping took: '+str(round(time_bl_mapping,0))+' s')
-        print('     - Interpolation of model data on the '+str(Nt)+' satellite points took: '+str(round(time_bl_interp,0))+' s \n')
+        #print('\n *** Time report:')
+        #print('     - Construction of the source-target bilinear mapping took: '+str(round(time_bl_mapping,0))+' s')
+        #print('     - Interpolation of model data on the '+str(Nt)+' satellite points took: '+str(round(time_bl_interp,0))+' s \n')
 
 
         if l_save_track_on_model_grid:

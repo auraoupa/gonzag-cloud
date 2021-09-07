@@ -459,17 +459,17 @@ class BilinTrack:
         self.ftalk = 2*self.Nt ; # => will never talk!
         if freq_talk>0: self.ftalk = int(freq_talk) ; # will talk every "ftalk" increments....
         
-        print('\n *** Finding nearest points on source (model) grid... (rd_found_km, np_box_r =',rd_found_km, np_box_r,')')
+#        print('\n *** Finding nearest points on source (model) grid... (rd_found_km, np_box_r =',rd_found_km, np_box_r,')')
         self.NP = self.nrpt( )
-        print('     ***    Done! *** \n')
+#        print('     ***    Done! *** \n')
 
-        print('  *** Determining source meshes...')
+#        print('  *** Determining source meshes...')
         self.SM = self.srcm( )
-        print('     ***    Done! *** \n')
+#        print('     ***    Done! *** \n')
         
-        print('  *** Computing bilinear weights...')
+#        print('  *** Computing bilinear weights...')
         self.WB = self.wght( )
-        print('     ***    Done! *** \n')
+#        print('     ***    Done! *** \n')
         
     def nrpt( self ):
         #
@@ -480,9 +480,9 @@ class BilinTrack:
         for jt in range(self.Nt):
             ltalk = ((jt+1)%self.ftalk==0)
 
-            if ltalk:
-                print('      +++ Treated point: '+str(jt+1)+'/'+str(self.Nt), \
-                      '\n          ==> Sat. coordinates:    ', nmp.round(self.Yt[jt],3), nmp.round(self.Xt[jt],3))
+#            if ltalk:
+#                print('      +++ Treated point: '+str(jt+1)+'/'+str(self.Nt), \
+#                      '\n          ==> Sat. coordinates:    ', nmp.round(self.Yt[jt],3), nmp.round(self.Xt[jt],3))
             
             [jj,ji] = NearestPoint( (self.Yt[jt],self.Xt[jt]), self.Ys, self.Xs, \
                                     rd_found_km=self.rfound, j_prv=jj, i_prv=ji, np_box_r=self.nprad )
@@ -494,9 +494,9 @@ class BilinTrack:
             
             xnp[jt,:] = [jj,ji]
 
-            if ltalk:
-                print('          ==> Model nearest point: ', \
-                      nmp.round(self.Ys[jj,ji],3),nmp.round(self.Xs[jj,ji]%360.,3),' (',jj,ji,')')
+#            if ltalk:
+#                print('          ==> Model nearest point: ', \
+#                      nmp.round(self.Ys[jj,ji],3),nmp.round(self.Xs[jj,ji]%360.,3),' (',jj,ji,')')
         #
         return xnp
     

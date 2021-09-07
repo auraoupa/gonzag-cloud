@@ -140,8 +140,8 @@ def IsGlobalLongitudeWise( X, mask , resd=1. ):
     Xm   = nmp.ma.masked_where( mask==0, X    )
     xmin = nmp.amin(Xm) ; # in [0:360] frame...
     xmax = nmp.amax(Xm) ; #     "     "
-    imin = nmp.argmin(Xm)%nx
-    imax = nmp.argmax(Xm)%nx
+    imin = nmp.argmin(Xm)
+    imax = nmp.argmax(Xm)
     #
     xb = degE_to_degWE(Xm)
     xminB = nmp.amin(xb) ; # in [-180:+180] frame...
@@ -164,7 +164,7 @@ def IsGlobalLongitudeWise( X, mask , resd=1. ):
     del xb
     return lglobal, l360, xmin, xmax
 
-def GetTimeOverlap( dataset_sat, dataset_mod ):
+def GetTimeOverlap( dataset_sat, dataset_mod, timevar_sat, timevar_mod ):
     '''
     # Get time overlap from model segment
     # Get satellite dates corresponding
@@ -174,15 +174,15 @@ def GetTimeOverlap( dataset_sat, dataset_mod ):
     import pandas as pd
     from .io import GetTimeInfo
     #
-    nts, range_sat = GetTimeInfo( dataset_sat )
-    ntm, range_mod = GetTimeInfo( dataset_mod )
+    nts, range_sat = GetTimeInfo( dataset_sat, timevar_sat )
+    ntm, range_mod = GetTimeInfo( dataset_mod, timevar_mod )
     #
     (zt1_s,zt2_s) = range_sat
     (zt1_m,zt2_m) = range_mod
-    if ldebug: print('\n *** Earliest/latest dates:\n   => for satellite data:',zt1_s.values,zt2_s.values,'\n   => for model     data:',zt1_m.values,zt2_m.values,'\n')
-    doy1_m=pd.to_datetime(zt1_m.values).dayofyear
-    doy2_m=pd.to_datetime(zt2_m.values).dayofyear
-    year_s=pd.to_datetime(zt1_s.values).year
+    if ldebug: print('\n *** Earliest/latest dates:\n   => for satellite data:',zt1_s,zt2_s,'\n   => for model     data:',zt1_m,zt2_m,'\n')
+    doy1_m=pd.to_datetime(zt1_m).dayofyear
+    doy2_m=pd.to_datetime(zt2_m).dayofyear
+    year_s=pd.to_datetime(zt1_s).year
     date1=nmp.asarray(year_s+1, dtype='datetime64[Y]')-1970+nmp.asarray(doy1_m, dtype='timedelta64[D]')-1
     date2=nmp.asarray(year_s+1, dtype='datetime64[Y]')-1970+nmp.asarray(doy2_m, dtype='timedelta64[D]')-1
 
@@ -196,7 +196,8 @@ def scan_idx( rvt, rt1, rt2 ):
     # RETURNS: the two corresponding position indices
     '''
     import numpy as nmp
-
+    from datetime import datetime as dtm
+    
     idx1=nmp.where(rvt>rt1)
     idx2=nmp.where(rvt<rt2)
 
@@ -444,9 +445,10 @@ class ModGrid:
     # mask
     # domain_bounds (= [ lat_min, lon_min, lat_max, lon_max ])
     '''
-    def __init__( self, dataset, date1, date2, gridset, varlsm, distorded_grid=False ):
+    def __init__( self, dataset, period, varlon, varlat, vartime, gridset, varlsm, distorded_grid=False ):
         '''
         # * dataset: DataArray containing model data
+        # * varlon, varlat: name of the latitude and longitude variable
         # * gridset, varlsm: file and variable to get land-sea mask...
         '''
         from .io import GetTimeVector, GetModelCoor, GetModelLSM, Save2Dfield
@@ -454,13 +456,23 @@ class ModGrid:
 
         self.file = dataset
 
-        rvt = GetTimeVector( dataset )
-        self.size = len(rvt)
-        self.time = rvt
+        rvt = GetTimeVector( dataset, vartime, lquiet=True )
+        (rtu1,rtu2)=nmp.array(period, dtype='datetime64')
+        jt1, jt2 = scan_idx( rvt, rtu1, rtu2 )
+
+        nt = jt2 - jt1 + 1
+
+        self.jt1   = jt1
+        self.jt2   = jt2
+
+        vtime = GetTimeVector( dataset, vartime, kt1=jt1, kt2=jt2 )
+        
+        self.size = nt
+        self.time = vtime
 
 
-        zlat =          GetModelCoor( dataset, 'latitude' )
-        zlon = nmp.mod( GetModelCoor( dataset, 'longitude') , 360. )
+        zlat =          GetModelCoor( dataset, 'latitude', varlat )
+        zlon = nmp.mod( GetModelCoor( dataset, 'longitude', varlon ) , 360. )
         if len(zlat.shape)==1 and len(zlon.shape)==1:
             # Must build the 2D version:
             print(' *** Model latitude and longitude arrays are 1D => building the 2D version!')
@@ -534,7 +546,7 @@ class ModGrid:
         print('     * lat_min, lat_max = ', round(lat_min,2), round(lat_max,2))
         print('     * should we pay attention to possible STRONG local distorsion in the grid: ', self.IsDistorded)
         print('     * number of time records of interest for the interpolation to come: ', self.size)
-        print('       ==> time record dates: '+str(date1)+' to '+str(date2)+', included\n')
+        print('       ==> time record dates: '+str(rtu1)+' to '+str(rtu2)+', included\n')
 
 
 
@@ -548,13 +560,10 @@ class SatTrack:
     '''
     # Will provide: size, time[:], lat[:], lon[:] of Satellite track
     '''
-    def __init__( self, dataset, rtu1, rtu2, name_ssh, Np=0, domain_bounds=[-90.,0. , 90.,360.], l_0_360=True ):
+    def __init__( self, dataset, period, name_time_sat, name_ssh, domain_bounds=[-90.,0. , 90.,360.], l_0_360=True ):
         '''
         # *  dataset: DataArray containing satellite track
         # *  name_ssh : name of the variable containing ssh [string]
-        # *  rtu1: date to start getting time from (included) [float]
-        # *  rtu2: date to stop  getting time from (included) [float]
-        # ** Np:     number of points (size) of track in dataset ...
         # ** domain_bounds: bound of region we are interested in => [ lat_min, lon_min, lat_max, lon_max ]
         '''
         from .io import GetTimeVector, GetSatCoor, GetSatSSH
@@ -567,7 +576,8 @@ class SatTrack:
         print(' *** [SatTrack()] Analyzing the time vector in dataset ...')
 
 
-        rvt = GetTimeVector( dataset, lquiet=True )
+        rvt = GetTimeVector( dataset, name_time_sat, lquiet=True )
+        (rtu1,rtu2)=nmp.array(period, dtype='datetime64')
         jt1, jt2 = scan_idx( rvt, rtu1, rtu2 )
 
         nt = jt2 - jt1 + 1
@@ -575,7 +585,7 @@ class SatTrack:
         self.jt1   = jt1
         self.jt2   = jt2
 
-        vtime = GetTimeVector( dataset, kt1=jt1, kt2=jt2 )
+        vtime = GetTimeVector( dataset, name_time_sat, kt1=jt1, kt2=jt2 )
 
 
         vlat  =        GetSatCoor( dataset, 'latitude' , jt1,jt2 )
