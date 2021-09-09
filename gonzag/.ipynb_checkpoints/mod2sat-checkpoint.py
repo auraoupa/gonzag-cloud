@@ -122,7 +122,7 @@ class Model2SatTrack:
             [w1, w2, w3, w4]                    = BT.WB[jt-jt1,:]
 
             Sm = MG.mask[j1,i1] + MG.mask[j2,i2] + MG.mask[j3,i3] + MG.mask[j4,i4]
-            if Sm.values == 4:
+            if Sm == 4:
                 # All 4 model points are ocean point !
 
                 vssh_m_np[jt-jt1] = Xm[j1,i1] ; # Nearest-point "interpolation"

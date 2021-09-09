@@ -113,8 +113,8 @@ def GetModelLSM( dataset, what ):
     elif l_nonzero_val:
         # Mask is constructed out of variable and where it is not 0
         if not ndim in [3,4]: MsgExit(ncvar+' is expected to have 3 or 4 dimensions')
-        if ndim==3: xmsk = dataset[ncvar][0,:,:] > 0
-        if ndim==4: xmsk = dataset[ncvar][0,0,:,:] > 0
+        if ndim==3: xmsk = dataset[ncvar][0,:,:].values > 0
+        if ndim==4: xmsk = dataset[ncvar][0,0,:,:].values > 0
     else:
         # Mask is read in mask file...
         if   ndim==2: xmsk = dataset[ncvar][:,:]
